@@ -1,48 +1,41 @@
 pipeline {
     agent any
 
-        environment {
+    environment {
+        IMAGE_NAME = "sunildev99/argocd"
         IMAGE_TAG = "${BUILD_NUMBER}"
     }
 
     stages {
-        
-       
-        stage('Docker Build') {
+        stage('Checkout Code') {
             steps {
-                sh "docker build . -t sunildev99/argocd:$BUILD_NUMBER"
+                checkout scm
             }
         }
-        stage('Docker Push') {
-            steps {
-              withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-              sh "docker login -u ${DOCKER_USER} -p ${DOCKER_PASS}"
-              sh "docker push sunildev99/argocd:$BUILD_NUMBER"
-                }
 
+        stage('Build Docker Image') {
+            steps {
+                echo "Building Docker image..."
+                sh "docker build -t ${IMAGE_NAME}:${IMAGE_TAG} ."
             }
         }
-        stage('Checkout K8S manifest SCM'){
+
+        stage('Push Docker Image') {
             steps {
-              git branch: 'main', url: 'https://github.com/betawins/Hiring-app-argocd.git'
+                withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                    sh '''
+                        echo "Logging in to DockerHub..."
+                        echo "${DOCKER_PASS}" | docker login -u "${DOCKER_USER}" --password-stdin
+                        docker push ${IMAGE_NAME}:${IMAGE_TAG}
+                    '''
+                }
             }
-        } 
-        stage('Update K8S manifest & push to Repo'){
-            steps {
-                script{
-                   withCredentials([usernamePassword(credentialsId: 'Github_server', passwordVariable: 'GIT_PASSWORD', usernameVariable: 'GIT_USERNAME')]) { 
-                        sh '''
-                        cat /var/lib/jenkins/workspace/$JOB_NAME/dev/deployment.yaml
-                        sed -i "s/5/${BUILD_NUMBER}/g" /var/lib/jenkins/workspace/$JOB_NAME/dev/deployment.yaml
-                        cat /var/lib/jenkins/workspace/$JOB_NAME/dev/deployment.yaml
-                        git add .
-                        git commit -m 'Updated the deploy yaml | Jenkins Pipeline'
-                        git remote -v
-                        git push https://$GIT_USERNAME:$GIT_PASSWORD@github.com/betawins/Hiring-app-argocd.git main
-                        '''                        
-                      }
-                  }
-            }   
         }
+
+        stage('Post Build Info') {
+            steps {
+                echo "Docker Image successfully pushed: ${IMAGE_NAME}:${IMAGE_TAG}"
             }
-} 
+        }
+    }
+}
