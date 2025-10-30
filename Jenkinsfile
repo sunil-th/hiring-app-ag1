@@ -15,10 +15,11 @@ pipeline {
         }
         stage('Docker Push') {
             steps {
-                withCredentials([string(credentialsId: 'dockerhub', variable: 'hubPwd')]) {
-                    sh "docker login -u sunildev99 -p ${hubPwd}"
-                    sh "docker push sunildev99/argocd:$BUILD_NUMBER"
+              withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+              sh "docker login -u ${DOCKER_USER} -p ${DOCKER_PASS}"
+              sh "docker push sunildev99/argocd:$BUILD_NUMBER"
                 }
+
             }
         }
         stage('Checkout K8S manifest SCM'){
