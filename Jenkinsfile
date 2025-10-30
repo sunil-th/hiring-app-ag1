@@ -38,4 +38,12 @@ pipeline {
             }
         }
     }
+
+    post {
+        success {
+            echo "Triggering Deploy-to-ArgoCD job with IMAGE_TAG=${BUILD_NUMBER}"
+            build job: 'Deploy-to-ArgoCD',
+                  parameters: [string(name: 'IMAGE_TAG', value: "${BUILD_NUMBER}")]
+        }
+    }
 }
